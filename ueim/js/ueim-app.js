@@ -18,6 +18,25 @@
   const charts = [];
   let cy = null;
 
+  // ---- All positions: the Position Master plus BlackRock's full 13F table, without counting the
+  // overlap twice (the full table repeats the rows already loaded for the demonstration issuers).
+  const fb = M.fullBlackRock;
+  const posKey = (filingId, cusip, putCall, type) => `${filingId}|${cusip}|${putCall || ''}|${type || 'SH'}`;
+  const masterKeys = new Set(M.positions.map((p) => posKey(p.filingId, p.cusip, p.putCall, p.sharesType)));
+  const fullAsPositions = fb.positions.map((p, i) => ({
+    positionId: 'PB' + String(i + 1).padStart(5, '0'), positionType: '13F', source: 'BlackRock full 13F', filingId: fb.filingId, reportingEntityId: fb.entityId,
+    issuerEntityId: p.issuerEntityId, issuerNameAsReported: p.issuerName, cusip: p.cusip, securityClass: p.titleOfClass, putCall: p.putCall, sharesType: p.sharesType,
+    shares: p.shares, value: p.valueUSD, investmentDiscretion: [['SOLE', p.discSOLE], ['DFND', p.discDFND], ['OTR', p.discOTR]].filter((x) => x[1]).map((x) => x[0]).join('/'),
+    votingAuthority: { sole: p.votingSole, shared: p.votingShared, none: p.votingNone }, beneficialOwnership: null, reportingPeriod: fb.meta.reportPeriod, rows: p.rows,
+  }));
+  const fullExtra = fullAsPositions.filter((p) => !masterKeys.has(posKey(p.filingId, p.cusip, p.putCall, p.sharesType)));
+  const POS = { master: M.positions.map((p) => Object.assign({ source: 'Position Master' }, p)), full: fullAsPositions };
+  POS.all = POS.master.concat(fullExtra);
+  POS.overlap = fullAsPositions.length - fullExtra.length;
+  const bundleFilings = M.filings.filter((f) => f.recordId !== UE.blackrock13G.record.recordId).length;
+  const countBy = (arr, fn) => arr.reduce((a, x) => { const k = fn(x); a[k] = (a[k] || 0) + 1; return a; }, {});
+  const COUNTS = { entities: M.entities.length, relationships: M.relationships.length, filings: M.filings.length, positions: POS.all.length };
+
   document.getElementById('data-badge').textContent = `SEC EDGAR · ${DATA.generatedAt.slice(0, 10)}`;
   document.getElementById('data-badge').className = 'badge b-reported';
   SOI.ui.themeToggle(document.getElementById('theme-btn'));
@@ -106,14 +125,16 @@
     const nonVoting = v.soleDispositive - v.soleVoting;
     const holders = SOI.ownership.buildIssuerView(M.records, issuerObj(AAPL), {});
     const lp = holders.institutional.periods[0];
-    const stat = (label, val, sub) => `<div class="kpi"><div class="label">${label}</div><div class="value">${val}</div><div class="sub">${sub || ''}</div></div>`;
+    const tile = (href, label, n, sub) => `<a class="kpi kpi-link" href="${href}" title="Open the list of all ${fmtInt(n)} ${label.toLowerCase()}"><div class="label">${label} <span class="go">→</span></div><div class="value">${fmtInt(n)}</div><div class="sub">${sub}</div></a>`;
     const qa = (n, q, verdict, cls, a, ev) => `<div class="qa-card"><div class="qa-q"><span class="n">${n}</span>${q}</div><div class="qa-a">${verdict ? `<span class="verdict ${cls}">${verdict}</span>` : ''}${a}</div>${ev ? `<div class="ev">Source: ${ev}</div>` : ''}</div>`;
     const g13Link = `<a href="${esc(gf.sourceUrl)}" target="_blank" rel="noopener">${esc(gf.formType)} ${esc(gf.accessionNumber)}</a> (filed ${esc(gf.filingDate)}, event date ${esc(g.record.extension.eventDate)})`;
     const f13Link = `<a href="${esc(indexUrl(b.filerCik, b.accessionNumber))}" target="_blank" rel="noopener">${esc(b.formType)} ${esc(b.accessionNumber)}</a> (period ${esc(b.reportPeriod)}, filed ${esc(b.filingDate)})`;
     view.innerHTML = `
       <div class="grid g4" style="margin-bottom:16px">
-        ${stat('Entities', fmtInt(M.stats.entities), 'canonical, CIK-first')}${stat('Relationships', fmtInt(M.stats.relationships), 'each with a source filing')}
-        ${stat('Filings', fmtInt(M.stats.filings), '13F, 13D/G, Forms 3/4/5')}${stat('Positions', fmtInt(M.stats.positions + M.fullBlackRock.positions.length), `incl. ${fmtInt(M.fullBlackRock.positions.length)} from BlackRock's full 13F`)}
+        ${tile('#/entities', 'Entities', COUNTS.entities, `${countBy(M.entities, (e) => (e.cik ? 'cik' : 'name')).cik || 0} identified by CIK · ${countBy(M.entities, (e) => (e.cik ? 'cik' : 'name')).name || 0} by name only`)}
+        ${tile('#/entities/relationships', 'Relationships', COUNTS.relationships, `${new Set(M.relationships.map((r) => r.relationshipType)).size} relationship types · every row has a source filing`)}
+        ${tile('#/filings', 'Filings', COUNTS.filings, Object.entries(countBy(M.filings, (f) => (/^FORM/.test(f.formFamily) ? 'Forms 3/4/5' : f.formFamily))).map(([k, n]) => `${k} ${fmtInt(n)}`).join(' · '))}
+        ${tile('#/positions', 'Positions', COUNTS.positions, `${fmtInt(POS.master.length)} in the Position Master + ${fmtInt(fullExtra.length)} more from BlackRock's full 13F`)}
       </div>
       <div class="split">
         <div class="card"><h3>Start with the demonstration</h3>
@@ -164,12 +185,28 @@
     ].concat(compact ? [] : [['Evidence', (r) => `<span class="small">${esc(r.evidenceText)}</span>`]]);
   }
 
+  /** Banner that ties a list page to the Dashboard tile with the same number. */
+  function countBanner(label, n, parts, how) {
+    return `<div class="callout count-banner"><div><strong>${fmtInt(n)} ${label}</strong> — the same number as the Dashboard tile.</div>
+      <div class="pill-row" style="margin:6px 0">${parts.map(([k, v]) => `<span class="chip">${esc(k)}: <strong>&nbsp;${fmtInt(v)}</strong></span>`).join('')}</div><div class="small">${how}</div></div>`;
+  }
+  function entityGroups() {
+    const roles = new Map();
+    M.entityRoles.forEach((r) => { (roles.get(r.entityId) || roles.set(r.entityId, new Set()).get(r.entityId)).add(r.roleCode); });
+    return countBy(M.entities, (e) => { const r = roles.get(e.entityId) || new Set(); return r.has('ISSUER') ? 'Issuers' : r.has('INSTITUTIONAL_INVESTMENT_MANAGER') ? '13F managers' : r.has('SUBSIDIARY') ? 'Exhibit A subsidiaries' : r.has('OTHER_INCLUDED_MANAGER') ? 'Other included managers' : (r.has('DIRECTOR') || r.has('EXECUTIVE_OFFICER') || r.has('TEN_PERCENT_OWNER')) ? 'Insiders' : r.has('REPORTING_PERSON') ? '13D/G reporting persons' : r.size ? 'Other roles' : 'EDGAR profile only'; });
+  }
+
   // ------------------------------------------------------------ 2. Entity Master (+ entity detail)
   function entities(sub, id) {
     if (sub === 'entity' && id) return entityDetail(ent(id));
     const tabs = [['entities', 'Entities'], ['roles', 'Role master'], ['entityRoles', 'Entity roles'], ['relTypes', 'Relationship types'], ['relationships', 'Relationship master'], ['securities', 'Security master']];
     const cur = tabs.find((t) => t[0] === sub) ? sub : 'entities';
-    view.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<a class="tab ${k === cur ? 'active' : ''}" href="#/entities/${k}">${l}</a>`).join('')}</div><div id="mt"></div>`;
+    const banner = cur === 'entities'
+      ? countBanner('entities', COUNTS.entities, Object.entries(entityGroups()), `Every distinct party named in the ${fmtInt(COUNTS.filings)} filings, grouped by its main role (each entity is counted once). Entities with the same CIK are one record; entities without a CIK are merged only when the normalized name is identical. ${countBy(M.entities, (e) => (e.cik ? 'c' : 'n')).c || 0} have a CIK, ${countBy(M.entities, (e) => (e.cik ? 'c' : 'n')).n || 0} are known by name only.`)
+      : cur === 'relationships'
+        ? countBanner('relationships', COUNTS.relationships, Object.entries(countBy(M.relationships, (r) => (relLabel[r.relationshipType] || {}).category)).map(([k, n]) => [k.toLowerCase(), n]), 'Created from the filings: 13F rows give investment-discretion and voting-authority links per manager, issuer and quarter; each 13D/G cover page gives beneficial-ownership, voting and dispositive links plus joint-filing links; Forms 3/4/5 give insider roles and latest holdings; the 13G/A Exhibit A gives parent/subsidiary links. Each row has its source filing.')
+        : '';
+    view.innerHTML = `${banner}<div class="tabs">${tabs.map(([k, l]) => `<a class="tab ${k === cur ? 'active' : ''}" href="#/entities/${k}">${l}</a>`).join('')}</div><div id="mt"></div>`;
     const el = view.querySelector('#mt');
     const rowsFor = { entities: M.entities, roles: M.roles, entityRoles: M.entityRoles, relTypes: M.relTypes, relationships: M.relationships, securities: M.securities }[cur];
     const tools = exportRows(cur, rowsFor);
@@ -626,23 +663,29 @@
 
   // ------------------------------------------------------------ 7. Filing Explorer / 8. Position Explorer
   function filings() {
-    view.innerHTML = `<div class="callout">Every filing in the Filing Master. One filing can carry several reporting persons, many issuers (13F) and many positions — it is never treated as a single relationship.</div><div id="fx"></div>`;
+    view.innerHTML = countBanner('filings', COUNTS.filings, Object.entries(countBy(M.filings, (f) => f.formFamily)), `${fmtInt(bundleFilings)} filings from the bundled SEC data (14 companies' 13D/G, Forms 3/4/5 and 13Fs from ${new Set(M.filings.filter((f) => f.formFamily === '13F').map((f) => f.filerEntityId)).size} managers over four quarters, amendments included) + ${fmtInt(COUNTS.filings - bundleFilings)} BlackRock 13G/A on Apple added for UEIM. Duplicate copies of the same accession number are counted once. One filing can carry several reporting persons, many issuers and many positions.`) + '<div id="fx"></div>';
     filingTable(view.querySelector('#fx'), M.filings.slice().sort((a, b) => (a.filingDate < b.filingDate ? 1 : -1)));
   }
-  function positions() {
-    const types = ['13F', '13DG', 'SECTION16'];
-    let st = { type: '' };
-    view.innerHTML = `<div class="callout">Every reported position in the Position Master: 13F rows (summed per filing and CUSIP), Schedule 13D/G cover pages and Section 16 holdings. Fields a filing does not disclose are left empty. 13F values are reported values for the period, not market values at the filing date.</div>
-      <div class="toolbar"><select id="px-t"><option value="">All position types</option>${types.map((t) => `<option>${t}</option>`).join('')}</select>${exportRows('positions', M.positions)}</div><div id="px"></div>`;
+  function positions(src) {
+    const st = { type: '', src: ['all', 'master', 'full'].includes(src) ? src : 'all' };
+    const sets = { all: POS.all, master: POS.master, full: POS.full };
+    view.innerHTML = countBanner('positions', COUNTS.positions, [['Position Master — 13F', countBy(POS.master, (p) => p.positionType)['13F'] || 0], ['Position Master — 13D/G cover pages', countBy(POS.master, (p) => p.positionType)['13DG'] || 0], ['Position Master — Section 16 holdings', countBy(POS.master, (p) => p.positionType).SECTION16 || 0], ["BlackRock's full 13F, not already above", fullExtra.length]],
+      `The Position Master holds the positions behind the relationships (13F rows for the demonstration issuers, 13D/G cover pages, Section 16 holdings). BlackRock's full 13F for ${esc(fb.meta.reportPeriod)} adds ${fmtInt(fb.positions.length)} positions, of which ${fmtInt(POS.overlap)} are already in the Position Master (the same filing and CUSIP), so they are counted once: ${fmtInt(POS.master.length)} + ${fmtInt(fb.positions.length)} − ${fmtInt(POS.overlap)} = ${fmtInt(POS.all.length)}.`) +
+      `<div class="toolbar"><select id="px-s"><option value="all">All positions (${fmtInt(POS.all.length)})</option><option value="master">Position Master only (${fmtInt(POS.master.length)})</option><option value="full">BlackRock's full 13F only (${fmtInt(POS.full.length)})</option></select>
+        <select id="px-t"><option value="">All position types</option>${['13F', '13DG', 'SECTION16'].map((t) => `<option>${t}</option>`).join('')}</select><button id="px-j">Export JSON</button><button id="px-c">CSV</button></div><div id="px"></div>`;
+    view.querySelector('#px-s').value = st.src;
+    const current = () => sets[st.src].filter((p) => !st.type || p.positionType === st.type);
     const draw = () => table(view.querySelector('#px'), [
-      ['ID', (p) => `<span class="mono-s">${p.positionId}</span>`], ['Type', (p) => esc(p.positionType)], ['Reporting entity', (p) => entLink(ent(p.reportingEntityId))],
+      ['ID', (p) => `<span class="mono-s">${p.positionId}</span>`], ['Type', (p) => esc(p.positionType) + (p.source === 'BlackRock full 13F' ? ' <span class="small muted">full table</span>' : '')], ['Reporting entity', (p) => entLink(ent(p.reportingEntityId))],
       ['Issuer', (p) => (p.issuerEntityId ? entLink(ent(p.issuerEntityId), 'ownership') : esc(p.issuerNameAsReported))], ['CUSIP', (p) => `<span class="mono-s">${esc(p.cusip || '—')}</span>`],
       ['Class', (p) => esc(p.securityClass || '') + (p.putCall ? ` <span class="badge b-neutral">${esc(p.putCall)}</span>` : '')], ['Shares', (p) => fmtInt(p.shares), { num: true, sort: (p) => p.shares || 0 }],
-      ['Value', (p) => (p.value ? fmtUSD(p.value) : '—'), { num: true }], ['Details', (p) => `<span class="small">${p.votingAuthority ? `discretion ${esc(p.investmentDiscretion)} · vote ${fmtShares(p.votingAuthority.sole)}/${fmtShares(p.votingAuthority.shared)}/${fmtShares(p.votingAuthority.none)}` : p.beneficialOwnership ? `${fmtPct(p.beneficialOwnership.percentOfClass)} · vote ${fmtShares(p.beneficialOwnership.soleVotingPower)}/${fmtShares(p.beneficialOwnership.sharedVotingPower)} · dispose ${fmtShares(p.beneficialOwnership.soleDispositivePower)}/${fmtShares(p.beneficialOwnership.sharedDispositivePower)}` : `${esc(p.directIndirect || '')} ${esc(p.natureOfOwnership || '')}`}</span>`],
+      ['Value', (p) => (p.value ? fmtUSD(p.value) : '—'), { num: true, sort: (p) => p.value || 0 }], ['Details', (p) => `<span class="small">${p.votingAuthority ? `discretion ${esc(p.investmentDiscretion)} · vote ${fmtShares(p.votingAuthority.sole)}/${fmtShares(p.votingAuthority.shared)}/${fmtShares(p.votingAuthority.none)}` : p.beneficialOwnership ? `${fmtPct(p.beneficialOwnership.percentOfClass)} · vote ${fmtShares(p.beneficialOwnership.soleVotingPower)}/${fmtShares(p.beneficialOwnership.sharedVotingPower)} · dispose ${fmtShares(p.beneficialOwnership.soleDispositivePower)}/${fmtShares(p.beneficialOwnership.sharedDispositivePower)}` : `${esc(p.directIndirect || '')} ${esc(p.natureOfOwnership || '')}`}</span>`],
       ['Period / date', (p) => esc(p.reportingPeriod), { sort: (p) => p.reportingPeriod || '' }], ['Filing', (p) => accLink(filing(p.filingId))],
-    ], st.type ? M.positions.filter((p) => p.positionType === st.type) : M.positions, { placeholder: 'Search entity, issuer, CUSIP…', text: (p) => [ent(p.reportingEntityId).legalName, p.issuerNameAsReported, p.cusip].join(' '), pageSize: 50 });
+    ], current(), { placeholder: 'Search entity, issuer, CUSIP…', text: (p) => [ent(p.reportingEntityId).legalName, p.issuerNameAsReported, p.cusip].join(' '), pageSize: 50 });
+    view.querySelector('#px-s').addEventListener('change', (e) => { st.src = e.target.value; draw(); });
     view.querySelector('#px-t').addEventListener('change', (e) => { st.type = e.target.value; draw(); });
-    bindExports(view, 'positions', M.positions);
+    view.querySelector('#px-j').addEventListener('click', () => SOI.storage.saveBlob(new Blob([JSON.stringify(current(), null, 2)], { type: 'application/json' }), `ueim-positions-${st.src}.json`));
+    view.querySelector('#px-c').addEventListener('click', () => SOI.storage.saveBlob(new Blob([SOI.storage.toCSV(current().map(flat))], { type: 'text/csv' }), `ueim-positions-${st.src}.csv`));
     draw();
   }
 
@@ -693,7 +736,7 @@
     document.title = (titles[top] || 'UEIM') + ' · UEIM';
     window.scrollTo(0, 0);
     try {
-      ({ dashboard, entities: () => entities(a, b), filer: () => filer(a), ownership: () => ownership(a), manager: () => manager(a), network: () => network(a), filings, positions, quality }[top] || dashboard)();
+      ({ dashboard, entities: () => entities(a, b), filer: () => filer(a), ownership: () => ownership(a), manager: () => manager(a), network: () => network(a), filings, positions: () => positions(a), quality }[top] || dashboard)();
     } catch (err) { console.error(err); view.innerHTML = `<div class="callout err">Something went wrong: ${esc(err.message)}</div>`; }
   }
   window.addEventListener('hashchange', route);
