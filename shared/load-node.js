@@ -8,6 +8,6 @@ const root = path.join(__dirname, '..');
   'sec-filing-parser/parsers/parser-section16-common.js', 'sec-filing-parser/parsers/parser-form3.js',
   'sec-filing-parser/parsers/parser-form4.js', 'sec-filing-parser/parsers/parser-form5.js',
   'sec-filing-parser/parsers/index.js',
-  'shared/entity-resolution.js', 'shared/relationship-engine.js', 'shared/ownership-engine.js',
+  'shared/entity-resolution.js', 'shared/relationship-engine.js', 'shared/ownership-engine.js', 'shared/ueim-masters.js',
 ].forEach((f) => { try { require(path.join(root, f)); } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e; } });
 module.exports = globalThis.SOI;

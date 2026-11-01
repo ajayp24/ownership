@@ -45,7 +45,7 @@ The SEC's fair-access policy requires a User-Agent with contact details. The too
 ```bash
 node --test tests/*.test.js
 ```
-There are 22 tests covering every parser, the parser-to-dashboard link (two simulated windows) (with real SEC documents as fixtures), detection, entity resolution and the ownership engine. Expected values are cross-checked against the raw documents (row counts and summary-page totals), not typed in by hand.
+There are 29 tests covering the UEIM masters, every parser, the parser-to-dashboard link (two simulated windows) (with real SEC documents as fixtures), detection, entity resolution and the ownership engine. Expected values are cross-checked against the raw documents (row counts and summary-page totals), not typed in by hand.
 
 ---
 
@@ -54,6 +54,26 @@ There are 22 tests covering every parser, the parser-to-dashboard link (two simu
 2. **One company, explained** (`#/explain/AAPL`) — picks one company and reads its real 13F, 13D/13G and Form 4 figures line by line in plain language. Switch to a small company (e.g. LWAY) to compare.
 3. **SEC filing types → Form 13F** — a real Berkshire Hathaway 13F showing where the issuers are: the manager is the filer, and each information-table row is a different issuer (29 issuers in 89 rows).
 4. A company page → **Visualise**: the *Ownership map* (issuer on top, three plain lists with bars) and *Who is connected to whom* (relationships as sentences). The full graph is one click away.
+
+## 1b. UEIM — Entity & Investment Manager Master
+
+`ueim/ueim.html` (single file: `standalone/ueim.html`) builds one canonical set of master tables from the same filings (`shared/ueim-masters.js`):
+
+| Master | One row per | Notes |
+|---|---|---|
+| Entity Master | real-world entity | CIK-first; never merged on similar names; a name shared by two CIKs is not guessed. Entity **type** (what it is) is separate from **role** (what it does), and each type records its basis. |
+| Role Master / Entity Roles | role / entity × role × context | Issuer, filer, reporting person, institutional investment manager, beneficial owner, direct/indirect owner, voting/dispositive authority, director, officer, 10% owner, parent, subsidiary, other included manager — with validity dates and source filings. |
+| Relationship types / Relationship Master | edge | Corporate, investment, ownership, reporting, authority and insider categories; each type says whether it is ownership. Every edge has a source filing, dates, evidence text, confidence and a documented/inferred flag. |
+| Filing / Security / Position Masters | accession / CUSIP / reported position | 13F rows summed per filing and CUSIP, 13D/G cover pages, Section 16 holdings. Undisclosed fields stay empty. |
+
+Views: Dashboard (BlackRock and Apple, 12 questions answered from the filings), Entity Master, Filer View, Ownership View, Investment Manager View, Relationship Network (links pass through the documenting filing), Filing Explorer, Position Explorer, Data Quality, plus global entity search.
+
+Demonstration data (`tools/build-ueim-data.js`, needs internet) — verified against the filings and covered by `tests/ueim.test.js`:
+- BlackRock's Schedule 13G/A on Apple, accession 0001086364-24-006980, filed 12 Feb 2024, event date 31 Dec 2023: aggregate 1,043,713,019 shares (6.7%), sole voting 936,902,208, shared voting 0, sole dispositive 1,043,713,019, shared dispositive 0, type HC, Rule 13d-1(b), 22 subsidiaries in Exhibit A. Filed by CIK 0001364742 (then "BlackRock Inc.", now "BlackRock Finance, Inc.").
+- BlackRock, Inc.'s full 13F-HR for 30 Jun 2026 (CIK 0002012383): 49,968 rows → 5,696 positions, reconciled to the summary page.
+- EDGAR company records (name histories) for both BlackRock CIKs, Apple and BlackRock Advisors LLC.
+
+Not established by these filings, so not created: legal title, individual funds/ETFs (needs Form N-PORT), LEI and tax identifiers, and how the two BlackRock CIKs relate to each other.
 
 ## 2. Project structure
 
@@ -72,10 +92,12 @@ sec-ownership-intelligence/
 │   ├── js/parser-app.js
 │   └── css/parser.css
 ├── shared/  xml-lite.js · data-models.js · entity-resolution.js · relationship-engine.js
-│            ownership-engine.js · storage.js · bridge.js · ui-helpers.js · ui.css · load-node.js
+│            ownership-engine.js · ueim-masters.js · storage.js · bridge.js · ui-helpers.js · ui.css · load-node.js
 ├── sample-data/   real EDGAR documents (13F pair, 13D, 13G, legacy HTML 13G, Forms 3/4/5, full submission .txt)
 ├── tools/fetch-sec-data.js           optional SEC retrieval module (Node)
 ├── tools/build-13f-example.js       builds the 13F learning example from sample-data (offline)
+├── ueim/                            UEIM app (ueim.html, js/ueim-app.js, data/ueim-data.js)
+├── tools/build-ueim-data.js         builds the UEIM demonstration data from EDGAR
 ├── tools/build-standalone.js        packs each app into one self-contained HTML file in standalone/
 ├── standalone/                      ownership-dashboard.html · sec-filing-parser.html (single-file builds)
 ├── index.html                       start page linking to everything

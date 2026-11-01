@@ -4,6 +4,7 @@
  *
  *   standalone/ownership-dashboard.html   (includes the SEC data and all libraries)
  *   standalone/sec-filing-parser.html
+ *   standalone/ueim.html                  (Entity & Investment Manager Master)
  *
  * Every <script src> and <link rel="stylesheet"> is inlined, so the files open
  * by double-click, work offline, and can be copied or emailed on their own.
@@ -45,6 +46,10 @@ function build(srcHtml, outName, linkMap) {
 }
 
 build(path.join(ROOT, 'ownership-dashboard', 'ownership-dashboard.html'), 'ownership-dashboard.html', {
+  '../sec-filing-parser/sec-filing-parser.html': 'sec-filing-parser.html',
+});
+build(path.join(ROOT, 'ueim', 'ueim.html'), 'ueim.html', {
+  '../ownership-dashboard/ownership-dashboard.html': 'ownership-dashboard.html',
   '../sec-filing-parser/sec-filing-parser.html': 'sec-filing-parser.html',
 });
 build(path.join(ROOT, 'sec-filing-parser', 'sec-filing-parser.html'), 'sec-filing-parser.html', {

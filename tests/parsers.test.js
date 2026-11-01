@@ -134,7 +134,7 @@ test('Parser13G: unknown XML elements land in record.unmapped', async () => {
 });
 
 test('Parser13G: legacy HTML 13G is parsed heuristically and flagged', async () => {
-  const s = sample('schedule-13g-legacy');
+  const s = sample('schedule-13g-legacy', 'd751537');
   const rec = await SOI.parsers.parse(s);
   assert.equal(rec.filing.formFamily, '13G');
   assert.equal(rec.extension.heuristic, true);
@@ -145,6 +145,25 @@ test('Parser13G: legacy HTML 13G is parsed heuristically and flagged', async () 
   assert.equal(first.percentOfClass, 5.8);
   assert.ok(rec.validation.warnings[0].includes('heuristics'));
   assert.ok(rec.ownershipRelationships.every((r) => r.type !== 'BENEFICIAL_OWNERSHIP' || r.confidence === 'low'));
+});
+
+test('Parser13G: BlackRock 13G/A on Apple (full .txt submission) matches the filed figures', async () => {
+  const s = sample('schedule-13g-legacy', 'blackrock');
+  const rec = await SOI.parsers.parse(s);
+  const p = rec.extension.reportingPersons[0];
+  assert.equal(rec.filing.accessionNumber, '0001086364-24-006980');
+  assert.equal(rec.filing.filingDate, '2024-02-12');
+  assert.equal(rec.filing.filerCik, '0001364742', 'filer CIK from the SEC header');
+  assert.equal(rec.issuer.cik, '0000320193');
+  assert.equal(rec.extension.eventDate, '2023-12-31');
+  assert.equal(p.name, 'BlackRock, Inc.');
+  assert.equal(p.aggregateAmountOwned, 1043713019);
+  assert.equal(p.soleVotingPower, 936902208);
+  assert.equal(p.sharedVotingPower, 0);
+  assert.equal(p.soleDispositivePower, 1043713019);
+  assert.equal(p.sharedDispositivePower, 0);
+  assert.equal(p.percentOfClass, 6.7);
+  assert.deepEqual(p.typeOfReportingPerson, ['HC']);
 });
 
 // ---------------------------------------------------------------- Forms 3 / 4 / 5

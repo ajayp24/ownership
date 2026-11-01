@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UEIM Entity Master</title>
+<link rel="stylesheet" href="../shared/ui.css">
+<link rel="stylesheet" href="css/ueim.css">
+</head>
+<body>
+<div class="app">
+  <nav class="sidenav" id="sidenav" aria-label="Main">
+    <div class="brand"><div class="brand-mark">UEIM</div><div>Entity &amp; Investment<br>Manager Master<small>SEC filings · runs locally</small></div></div>
+    <a class="nav-link" href="../index.html">← Start page</a>
+    <a class="nav-link" href="#/dashboard" data-route="dashboard">1 · Dashboard</a>
+    <a class="nav-link" href="#/entities" data-route="entities">2 · Entity Master</a>
+    <a class="nav-link" href="#/filer" data-route="filer">3 · Filer View</a>
+    <a class="nav-link" href="#/ownership" data-route="ownership">4 · Ownership View</a>
+    <a class="nav-link" href="#/manager" data-route="manager">5 · Investment Manager View</a>
+    <a class="nav-link" href="#/network" data-route="network">6 · Relationship Network</a>
+    <a class="nav-link" href="#/filings" data-route="filings">7 · Filing Explorer</a>
+    <a class="nav-link" href="#/positions" data-route="positions">8 · Position Explorer</a>
+    <a class="nav-link" href="#/quality" data-route="quality">9 · Data Quality</a>
+    <div class="nav-group">Other apps</div>
+    <a class="nav-link" href="../ownership-dashboard/ownership-dashboard.html">Ownership dashboard →</a>
+    <a class="nav-link" href="../sec-filing-parser/sec-filing-parser.html">Filing parser →</a>
+  </nav>
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Open menu">☰</button>
+      <div class="title" id="page-title">UEIM</div>
+      <div class="spacer"></div>
+      <div class="search-box"><input type="search" id="entity-search" placeholder="Find entity by name or CIK…" autocomplete="off" aria-label="Find entity"><div id="search-results" class="search-results hidden"></div></div>
+      <span class="badge b-neutral" id="data-badge"></span>
+      <button id="theme-btn" title="Toggle light/dark">◐</button>
+    </header>
+    <div class="content" id="view"></div>
+  </div>
+</div>
+
+<script src="../vendor/cytoscape.min.js"></script>
+<script src="../vendor/xlsx.full.min.js"></script>
+<script src="../vendor/jszip.min.js"></script>
+<script src="../shared/xml-lite.js"></script>
+<script src="../shared/data-models.js"></script>
+<script src="../shared/entity-resolution.js"></script>
+<script src="../shared/relationship-engine.js"></script>
+<script src="../shared/ownership-engine.js"></script>
+<script src="../shared/ueim-masters.js"></script>
+<script src="../shared/storage.js"></script>
+<script src="../shared/ui-helpers.js"></script>
+<script src="../ownership-dashboard/data/sec-data.js"></script>
+<script src="data/ueim-data.js"></script>
+<script src="js/ueim-app.js"></script>
+</body>
+</html>

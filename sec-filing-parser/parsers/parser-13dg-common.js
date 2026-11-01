@@ -167,6 +167,13 @@
 
   // ---------- legacy HTML / text ----------
 
+  /** Label in any case ("TYPE OF REPORTING PERSON" / "Type of reporting person"), codes in capitals (HC, IA, IN…). */
+  function typeCodes(text) {
+    const m = /type of reporting person\s*(?:\(see instructions\))?\s*[:.]?\s*/i.exec(text);
+    if (!m) return '';
+    return (/^((?:[A-Z]{2}\b[\s,;]*)+)/.exec(text.slice(m.index + m[0].length)) || [])[1] || '';
+  }
+
   function num(re, s) {
     const m = re.exec(s);
     if (!m) return null;
@@ -221,7 +228,7 @@
         sharedDispositivePower: num(new RegExp('SHARED DISPOSITIVE POWER[^\\d\\-n]{0,30}' + NUM, 'i'), c1),
         aggregateAmountOwned: num(new RegExp('AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON[^\\d\\-n]{0,30}' + NUM, 'i'), c1),
         percentOfClass: num(/PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW\s*\(?\s*\d+\s*\)?\s*[:.]?\s*([\d.]+)\s*%?/i, c1),
-        typeOfReportingPerson: splitTypes((/TYPE OF REPORTING PERSON\s*(?:\(SEE INSTRUCTIONS\))?\s*[:.]?\s*((?:[A-Z]{2}\b[\s,;]*)+)/.exec(c1) || [])[1]),
+        typeOfReportingPerson: splitTypes(typeCodes(c1)),
         heuristic: true,
         sourcePath: `${doc.name}: cover page ${i + 1} (text heuristic)`,
       });
