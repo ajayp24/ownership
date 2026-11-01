@@ -40,3 +40,19 @@
 .finding .fh { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
 .delta-up { color: var(--ok); } .delta-down { color: var(--err); }
 .chip-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--border-strong); border-radius: 999px; font-size: 12px; cursor: pointer; background: var(--surface); }
+
+.hier-root { padding: 14px 16px; }
+.hier-head { padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+details.hier > summary { cursor: pointer; list-style: none; padding: 8px 10px; border-radius: 6px; }
+details.hier > summary::-webkit-details-marker { display: none; }
+details.hier > summary::before { content: '▸'; display: inline-block; width: 16px; color: var(--text-3); }
+details.hier[open] > summary::before { content: '▾'; }
+details.hier > summary:hover { background: var(--surface-2); }
+.hier-1 { border-left: 3px solid var(--accent); margin: 8px 0; padding-left: 6px; }
+.hier-1 > summary .hier-title { font-weight: 700; font-size: 15px; }
+.hier-desc { margin-left: 16px; }
+.hier-2 { margin: 4px 0 8px 18px; border-left: 2px dashed var(--border-strong); padding-left: 8px; }
+.hier-2 > summary .hier-title { font-weight: 600; }
+.hier-2 .table-wrap { margin: 4px 0 8px 16px; }
+.dir { display: inline-block; width: 18px; text-align: center; font-weight: 700; color: var(--accent); }
+.dir.in { color: var(--warn); }

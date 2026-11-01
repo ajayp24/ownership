@@ -467,6 +467,8 @@
   function network(id) {
     const focus = ent(id) || BLK;
     const st = network.state || (network.state = { viaFilings: true, cats: ['OWNERSHIP', 'REPORTING', 'AUTHORITY', 'INVESTMENT', 'CORPORATE', 'INSIDER'], latest: true, scope: 'pair', other: AAPL.entityId, sameName: true });
+    if (!st.mode) st.mode = 'table';
+    if (st.mode === 'table') return networkTable(focus, st);
     // Scope "pair": only the links between the focus (plus same-name CIKs) and one counterpart — the simple default picture.
     const isBlk = focus === BLK || focus === BLK_OLD;
     const other = ent(st.other) && st.other !== focus.entityId ? ent(st.other) : (focus === AAPL ? BLK : AAPL);
@@ -500,7 +502,7 @@
     });
     const cats = ['OWNERSHIP', 'REPORTING', 'AUTHORITY', 'INVESTMENT', 'CORPORATE', 'INSIDER'];
     const colors = { OWNERSHIP: '#dc6b19', REPORTING: '#64748b', AUTHORITY: '#ca8a04', INVESTMENT: '#2563eb', CORPORATE: '#b91c1c', INSIDER: '#16a34a' };
-    view.innerHTML = `<div class="toolbar"><label class="inline">Focus ${entitySelect(M.entities.filter((x) => M.relationships.some((r) => r.fromEntityId === x.entityId || r.toEntityId === x.entityId)).sort((a, b) => a.legalName.localeCompare(b.legalName)), focus, 'network')}</label>
+    view.innerHTML = `${modeSwitch(st)}<div class="toolbar"><label class="inline">Focus ${entitySelect(networkEntities(), focus, 'network')}</label>
         <label class="chip-toggle"><input type="checkbox" id="nw-f" ${st.viaFilings ? 'checked' : ''}> show filings as nodes</label><label class="chip-toggle"><input type="checkbox" id="nw-l" ${st.latest ? 'checked' : ''}> latest filing per link</label>
         <label class="inline">Show <select id="nw-s"><option value="pair" ${st.scope === 'pair' ? 'selected' : ''}>only links with…</option><option value="all" ${st.scope === 'all' ? 'selected' : ''}>all links (largest 40 per category)</option></select></label>
         ${st.scope === 'pair' ? `<select id="nw-o" style="max-width:260px">${partners.map((x) => `<option value="${x.entityId}" ${x === other ? 'selected' : ''}>${esc(x.legalName)}</option>`).join('')}</select>` : ''}
@@ -548,8 +550,78 @@
     view.querySelector('#nw-s').addEventListener('change', (ev) => { st.scope = ev.target.value; rer(); });
     const wo = view.querySelector('#nw-o'); if (wo) wo.addEventListener('change', (ev) => { st.other = ev.target.value; rer(); });
     view.querySelector('#nw-fit').addEventListener('click', () => cy.fit(undefined, 30));
+    bindModeSwitch(st, focus);
     view.querySelectorAll('[data-cat]').forEach((c) => c.addEventListener('change', () => { st.cats = [...view.querySelectorAll('[data-cat]:checked')].map((x) => x.dataset.cat); rer(); }));
   }
+  const networkEntities = () => M.entities.filter((x) => M.relationships.some((r) => r.fromEntityId === x.entityId || r.toEntityId === x.entityId)).sort((a, b) => a.legalName.localeCompare(b.legalName));
+  const modeSwitch = (st) => `<div class="tabs"><button class="tab ${st.mode === 'table' ? 'active' : ''}" data-mode="table">Hierarchy table</button><button class="tab ${st.mode === 'graph' ? 'active' : ''}" data-mode="graph">Diagram</button></div>`;
+  function bindModeSwitch(st, focus) { view.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { st.mode = b.dataset.mode; network(focus.entityId); })); }
+
+  /**
+   * Relationship network as a folding table:
+   *   entity → relationship category → relationship type → one row per connected entity (with figures and source filing).
+   */
+  function networkTable(focus, st) {
+    const CAT_INFO = {
+      OWNERSHIP: ['Ownership', 'Reported ownership: beneficial (13D/G), direct or indirect (Forms 3/4/5), or securities named in a filing.'],
+      AUTHORITY: ['Voting and dispositive power', 'Who can vote the shares and who can decide to sell them — reported separately.'],
+      INVESTMENT: ['Investment management', 'Investment discretion reported on Form 13F. Managing is not owning.'],
+      REPORTING: ['Reporting links', 'Who files for whom, who reports jointly, and whose holdings are included in a 13F.'],
+      CORPORATE: ['Corporate structure', 'Parent and subsidiary links documented in a filing (e.g. Schedule 13G Exhibit A).'],
+      INSIDER: ['Insider roles', 'Director, officer or 10% owner, from the boxes ticked on Forms 3/4/5.'],
+    };
+    const ids = new Set([focus.entityId].concat(st.sameName && focus.sameNameOtherCiks ? focus.sameNameOtherCiks.map((o) => o.entityId) : []));
+    let rels = M.relationships.filter((r) => (ids.has(r.fromEntityId) || ids.has(r.toEntityId)) && !r.putCall);
+    if (st.latest) { const best = new Map(); rels.forEach((r) => { const k = r.relationshipType + r.fromEntityId + r.toEntityId + (r.natureOfOwnership || ''); const p = best.get(k); if (!p || (r.validFrom || '') > (p.validFrom || '')) best.set(k, r); }); rels = [...best.values()]; }
+    const q = (st.tq || '').toLowerCase();
+    const other = (r) => ent(ids.has(r.fromEntityId) ? r.toEntityId : r.fromEntityId);
+    if (q) rels = rels.filter((r) => other(r).legalName.toLowerCase().includes(q));
+    const self = (r) => ent(ids.has(r.fromEntityId) ? r.fromEntityId : r.toEntityId);
+    const cats = Object.keys(CAT_INFO).map((c) => [c, rels.filter((r) => (relLabel[r.relationshipType] || {}).category === c)]).filter(([, list]) => list.length);
+    const row = (r) => {
+      const out = ids.has(r.fromEntityId);
+      const o = other(r), f = filing(r.sourceFilingId);
+      return `<tr><td class="hier-leaf">${out ? '<span class="dir" title="This entity → other">→</span>' : '<span class="dir in" title="Other → this entity">←</span>'} ${entLink(o)} <span class="muted small">${esc(o.entityType)}</span>${ids.size > 1 && self(r) !== focus ? `<div class="small muted">via ${esc(self(r).legalName)} (CIK ${esc(self(r).cik)})</div>` : ''}</td>
+        <td class="num">${r.shares !== null && r.shares !== undefined ? fmtInt(r.shares) : '—'}</td>
+        <td class="num">${r.ownershipPercentage !== null && r.ownershipPercentage !== undefined ? fmtPct(r.ownershipPercentage) : '—'}</td>
+        <td class="nowrap">${esc(r.validFrom || '—')} → ${r.validTo ? esc(r.validTo) : '<span class="muted">open</span>'}</td>
+        <td>${f ? `${esc(f.formType)} ${accLink(f)}<div class="small muted">filed ${esc(f.filingDate)}</div>` : '—'}</td>
+        <td>${statusBadge(r.isInferred ? 'inferred' : 'reported')}</td></tr>`;
+    };
+    const typeBlock = (code, list) => {
+      const t = relLabel[code] || { label: code };
+      list.sort((a, b) => (b.shares || 0) - (a.shares || 0) || other(a).legalName.localeCompare(other(b).legalName));
+      return `<details class="hier hier-2" ${list.length <= 12 ? 'open' : ''}><summary><span class="hier-title">${esc(t.label)}</span> <span class="mono-s muted">${esc(code)}</span> <span class="chip">${list.length}</span>${t.isOwnership ? ' <span class="badge b-warn">ownership</span>' : ''}</summary>
+        <div class="table-wrap"><table class="data"><tr><th>Connected entity</th><th class="num">Shares</th><th class="num">%</th><th>Valid</th><th>Source filing</th><th>Status</th></tr>${list.slice(0, 200).map(row).join('')}</table></div>
+        ${list.length > 200 ? `<p class="small muted">Showing 200 of ${list.length}. Use the search box to narrow.</p>` : ''}</details>`;
+    };
+    view.innerHTML = `${modeSwitch(st)}
+      <div class="toolbar"><label class="inline">Entity ${entitySelect(networkEntities(), focus, 'network')}</label>
+        <input type="search" id="nt-q" placeholder="Filter connected entities…" value="${esc(st.tq || '')}" style="min-width:200px">
+        <label class="chip-toggle"><input type="checkbox" id="nt-l" ${st.latest ? 'checked' : ''}> latest filing per link</label>
+        ${focus.sameNameOtherCiks ? `<label class="chip-toggle"><input type="checkbox" id="nt-a" ${st.sameName ? 'checked' : ''}> include same-name CIK(s)</label>` : ''}
+        <button id="nt-open">Expand all</button><button id="nt-close">Collapse all</button></div>
+      <p class="small muted">Read top to bottom: the entity, then each kind of relationship, then every connected entity with its figures and the filing that documents it. → means this entity acts on the other; ← means the other acts on this entity.</p>
+      <div class="card hier-root">
+        <div class="hier-head"><span class="ent-name">${esc(focus.legalName)}</span> ${typeChip(focus)} ${roleChips(rolesOf(focus))}<div class="small muted">CIK ${esc(focus.cik || '—')} · ${rels.length} relationship(s)${ids.size > 1 ? ` · including ${[...ids].filter((x) => x !== focus.entityId).map((x) => esc(ent(x).legalName) + ' (CIK ' + esc(ent(x).cik) + ')').join(', ')}` : ''}</div></div>
+        ${cats.length ? cats.map(([c, list]) => {
+          const types = [...new Set(list.map((r) => r.relationshipType))];
+          return `<details class="hier hier-1" open><summary><span class="hier-title">${esc(CAT_INFO[c][0])}</span> <span class="chip">${list.length}</span><div class="small muted hier-desc">${esc(CAT_INFO[c][1])}</div></summary>
+            ${c === 'INVESTMENT' && ids.has(BLK.entityId) ? `<p class="small muted" style="margin-left:24px">Relationships are built for the demonstration issuers. BlackRock's full 13F has ${fmtInt(M.fullBlackRock.positions.length)} positions — see ${link('filer/' + BLK.entityId, 'Filer View')}.</p>` : ''}
+            ${types.map((t) => typeBlock(t, list.filter((r) => r.relationshipType === t))).join('')}</details>`;
+        }).join('') : '<div class="empty">No relationships match.</div>'}
+      </div>`;
+    bindSelect();
+    bindModeSwitch(st, focus);
+    const rer = () => networkTable(focus, st);
+    const tq = view.querySelector('#nt-q');
+    tq.addEventListener('change', () => { st.tq = tq.value.trim(); rer(); });
+    view.querySelector('#nt-l').addEventListener('change', (e) => { st.latest = e.target.checked; rer(); });
+    const na = view.querySelector('#nt-a'); if (na) na.addEventListener('change', (e) => { st.sameName = e.target.checked; rer(); });
+    view.querySelector('#nt-open').addEventListener('click', () => view.querySelectorAll('details.hier').forEach((d) => { d.open = true; }));
+    view.querySelector('#nt-close').addEventListener('click', () => view.querySelectorAll('details.hier-2').forEach((d) => { d.open = false; }));
+  }
+
   const relRole = (r) => ({ REPORTS_BENEFICIAL_OWNERSHIP_OF: 'REPORTING_PERSON', BENEFICIALLY_OWNS: 'BENEFICIAL_OWNER', EXERCISES_INVESTMENT_DISCRETION_OVER: 'INSTITUTIONAL_INVESTMENT_MANAGER', HAS_SOLE_VOTING_POWER: 'VOTING_AUTHORITY_HOLDER', HAS_SHARED_VOTING_POWER: 'VOTING_AUTHORITY_HOLDER', HAS_SOLE_DISPOSITIVE_POWER: 'DISPOSITIVE_AUTHORITY_HOLDER', HAS_SHARED_DISPOSITIVE_POWER: 'DISPOSITIVE_AUTHORITY_HOLDER', PARENT_OF: 'PARENT', SUBSIDIARY_OF: 'SUBSIDIARY', DIRECTOR_OF: 'DIRECTOR', OFFICER_OF: 'EXECUTIVE_OFFICER', INSIDER_OF: 'TEN_PERCENT_OWNER', DIRECTLY_OWNS: 'DIRECT_OWNER', INDIRECTLY_OWNS: 'INDIRECT_OWNER', INCLUDES_OTHER_MANAGER: 'INSTITUTIONAL_INVESTMENT_MANAGER', FILES_FOR: 'FILER', JOINT_REPORTING_PERSON: 'REPORTING_PERSON' }[r.relationshipType]);
 
   // ------------------------------------------------------------ 7. Filing Explorer / 8. Position Explorer
