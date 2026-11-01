@@ -13,6 +13,8 @@ Everything runs in the browser. There is no backend and no paid API, and uploade
 
 ## 1. Running it
 
+**Start here:** open **`index.html`** in the project folder. It links to both apps (single-file and source versions), suggests where to begin, and lists the companies.
+
 ### Option 1 — the single-file versions (simplest)
 Open **`standalone/ownership-dashboard.html`** or **`standalone/sec-filing-parser.html`** by double-clicking. Each file is fully self-contained: all scripts, styles, libraries and (for the dashboard) the SEC data are inside it. No server, no internet and no other files are needed, so you can copy or email them on their own. Rebuild them after changing the source with `node tools/build-standalone.js`.
 
@@ -76,6 +78,7 @@ sec-ownership-intelligence/
 ├── tools/build-13f-example.js       builds the 13F learning example from sample-data (offline)
 ├── tools/build-standalone.js        packs each app into one self-contained HTML file in standalone/
 ├── standalone/                      ownership-dashboard.html · sec-filing-parser.html (single-file builds)
+├── index.html                       start page linking to everything
 ├── tests/parsers.test.js
 └── vendor/  cytoscape 3.28.1 · Chart.js 4.4.1 · SheetJS 0.18.5 · JSZip 3.10.1
 ```
