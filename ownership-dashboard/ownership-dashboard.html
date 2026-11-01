@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ownership Intelligence</title>
+<link rel="stylesheet" href="../shared/ui.css">
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+<div class="app">
+  <nav class="sidenav" id="sidenav" aria-label="Main">
+    <div class="brand"><div class="brand-mark">SOI</div><div>Ownership Intelligence<small>SEC filings · analysed locally</small></div></div>
+    <a class="nav-link" href="#/home" data-route="home">Overview</a>
+    <div class="nav-group">Learn</div>
+    <a class="nav-link" href="#/learn/terms" data-route="learn/terms">Ownership terminology</a>
+    <a class="nav-link" href="#/learn/relationships" data-route="learn/relationships">Relationship models</a>
+    <a class="nav-link" href="#/learn/filings" data-route="learn/filings">SEC filing types</a>
+    <a class="nav-link" href="#/explain/AAPL" data-route="explain">One company, explained</a>
+    <div class="nav-group">Companies</div>
+    <div id="nav-companies"></div>
+    <div class="nav-group">Analyse</div>
+    <a class="nav-link" href="#/network" data-route="network">Ownership network</a>
+    <a class="nav-link" href="#/data" data-route="data">Imported data <span class="tk" id="nav-imported">0</span></a>
+    <a class="nav-link" id="open-parser" href="../sec-filing-parser/sec-filing-parser.html">Filing parser →</a>
+  </nav>
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Open menu">☰</button>
+      <div class="title" id="page-title">Overview</div>
+      <div class="spacer"></div>
+      <select id="company-select" aria-label="Select company" style="max-width:240px"></select>
+      <span class="badge b-neutral" id="data-badge" title="Source of the bundled data"></span>
+      <span class="badge b-neutral hidden" id="link-status">Parser linked</span>
+      <button id="theme-btn" title="Toggle light/dark">◐</button>
+    </header>
+    <div class="content" id="view"></div>
+  </div>
+</div>
+
+<script src="../vendor/cytoscape.min.js"></script>
+<script src="../vendor/chart.umd.min.js"></script>
+<script src="../vendor/xlsx.full.min.js"></script>
+<script src="../vendor/jszip.min.js"></script>
+<script src="../shared/xml-lite.js"></script>
+<script src="../shared/data-models.js"></script>
+<script src="../shared/entity-resolution.js"></script>
+<script src="../shared/relationship-engine.js"></script>
+<script src="../shared/ownership-engine.js"></script>
+<script src="../shared/storage.js"></script>
+<script src="../shared/ui-helpers.js"></script>
+<script src="../shared/bridge.js"></script>
+<script src="data/sec-data.js"></script>
+<script src="data/example-13f.js"></script>
+<script src="js/content-learn.js"></script>
+<script src="js/diagrams.js"></script>
+<script src="js/learn-views.js"></script>
+<script src="js/company-views.js"></script>
+<script src="js/network-view.js"></script>
+<script src="js/explain-view.js"></script>
+<script src="js/dashboard-app.js"></script>
+</body>
+</html>

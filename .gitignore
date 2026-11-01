@@ -1,0 +1,5 @@
+tools/.cache/
+tools/fetch.log
+.claude/
+.DS_Store
+node_modules/

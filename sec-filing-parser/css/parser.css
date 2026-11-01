@@ -1,0 +1,17 @@
+.parse-grid { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 1000px) { .parse-grid { grid-template-columns: 1fr; } }
+.dropzone { border: 2px dashed var(--border-strong); border-radius: 10px; padding: 26px 16px; text-align: center; cursor: pointer; transition: background .15s, border-color .15s; }
+.dropzone.over, .dropzone:focus { border-color: var(--accent); background: var(--accent-weak); outline: none; }
+.dz-title { font-weight: 650; font-size: 15px; margin-bottom: 4px; }
+.queue { display: flex; flex-direction: column; gap: 6px; max-height: 56vh; overflow: auto; }
+.q-item { border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; cursor: pointer; background: var(--surface); }
+.q-item:hover { border-color: var(--border-strong); }
+.q-item.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.q-name { font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+.q-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; font-size: 12px; color: var(--text-3); }
+.progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+.progress > div { height: 100%; background: var(--accent); width: 40%; animation: slide 1s infinite linear; }
+@keyframes slide { from { margin-left: -40%; } to { margin-left: 100%; } }
+.meta-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin: 8px 0 4px; }
+.meta-form label { font-size: 12px; color: var(--text-3); display: flex; flex-direction: column; gap: 3px; }
+.diff-up { color: var(--ok); } .diff-down { color: var(--err); }

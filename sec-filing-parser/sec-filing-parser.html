@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEC Filing Parser</title>
+<link rel="stylesheet" href="../shared/ui.css">
+<link rel="stylesheet" href="css/parser.css">
+</head>
+<body>
+<div class="app">
+  <nav class="sidenav" id="sidenav" aria-label="Sections">
+    <div class="brand"><div class="brand-mark">SOI</div><div>SEC Filing Parser<small>Runs locally · nothing is uploaded</small></div></div>
+    <div class="nav-group">Workspace</div>
+    <a class="nav-link active" data-view="parse">Parse filings</a>
+    <a class="nav-link" data-view="database">Local database <span class="tk" id="nav-count">0</span></a>
+    <a class="nav-link" data-view="compare">Compare periods</a>
+    <div class="nav-group">Reference</div>
+    <a class="nav-link" data-view="formats">Supported formats</a>
+    <a class="nav-link" id="open-dash" href="../ownership-dashboard/ownership-dashboard.html">Open the dashboard →</a>
+  </nav>
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Open menu">☰</button>
+      <div class="title" id="page-title">Parse filings</div>
+      <div class="spacer"></div>
+      <span class="badge b-ok" title="Files are read in this browser tab only">Offline · Local only</span>
+      <span class="badge b-neutral" id="link-status" title="Open the dashboard from this page to link the two apps">Dashboard not linked</span>
+      <label class="inline small" title="Send each newly parsed filing to the linked dashboard"><input type="checkbox" id="auto-send"> Auto-send</label>
+      <button class="primary" id="send-dash" title="Send all parsed filings to the dashboard (opens it if needed)">Send to dashboard</button>
+      <button id="theme-btn" title="Toggle light/dark">◐ Theme</button>
+    </header>
+    <div class="content">
+
+      <!-- PARSE -->
+      <section data-panel="parse">
+        <div class="grid parse-grid">
+          <div>
+            <div class="card">
+              <div id="drop" class="dropzone" tabindex="0" role="button" aria-label="Choose SEC filing files">
+                <div class="dz-title">Drop SEC filings here</div>
+                <div class="muted small">XML, HTML, TXT (EDGAR full submission), CSV (13F information table) or ZIP</div>
+                <div class="toolbar" style="justify-content:center;margin:12px 0 0">
+                  <button class="primary" id="pick-btn">Choose files…</button>
+                </div>
+                <input type="file" id="file-input" multiple accept=".xml,.htm,.html,.txt,.csv,.zip" hidden>
+              </div>
+              <div class="small muted" style="margin-top:10px">Supported: 13F-HR, 13F-HR/A, Schedule 13D, 13D/A, 13G, 13G/A, Forms 3, 4, 5. A 13F cover page and its information table uploaded together (or in one ZIP) are combined into one record.</div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Queue</h3><div class="spacer"></div><button id="clear-queue">Clear</button></div>
+              <div id="queue" class="queue"><div class="empty">No files yet</div></div>
+            </div>
+          </div>
+          <div>
+            <div class="card" id="viewer"><div class="empty">Parsed records appear here. Select an item in the queue.</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DATABASE -->
+      <section data-panel="database" class="hidden">
+        <div class="callout">Records are stored in this browser's IndexedDB. Original documents are kept beside them so you can download them again. Nothing leaves this computer.</div>
+        <div class="card">
+          <div class="toolbar">
+            <input type="search" id="db-search" placeholder="Search issuer, filer, owner, manager, accession…" style="flex:1;min-width:220px">
+            <select id="db-form"><option value="">All form types</option><option>13F</option><option>13D</option><option>13G</option><option value="FORM3">Form 3</option><option value="FORM4">Form 4</option><option value="FORM5">Form 5</option></select>
+            <select id="db-issuer"><option value="">All issuers</option></select>
+            <select id="db-filer"><option value="">All filers / managers / owners</option></select>
+          </div>
+          <div class="toolbar">
+            <span class="small muted" id="db-selected">0 selected</span>
+            <div class="spacer"></div>
+            <button id="exp-json">Export JSON</button>
+            <button id="exp-xlsx">Export Excel</button>
+            <select id="exp-csv-table" title="CSV table"><option>Filings</option><option>Holdings_13F</option><option>ReportingPersons_13DG</option><option>Section16_Rows</option><option>Relationships</option><option>Validation</option><option>Unmapped_Fields</option></select>
+            <button id="exp-csv">Export CSV</button>
+            <button id="exp-zip">Export all as ZIP</button>
+            <button id="db-send" class="primary">Send to dashboard</button>
+            <button id="dl-orig">Download originals</button>
+            <label class="btn" for="import-input">Import JSON / Excel</label><input type="file" id="import-input" accept=".json,.xlsx" hidden>
+            <button class="danger" id="db-delete">Delete selected</button>
+          </div>
+          <div class="small muted" style="margin-bottom:8px">Exports use the selected rows, or all rows shown when nothing is selected.</div>
+          <div class="table-wrap" style="max-height:62vh;overflow:auto"><table class="data" id="db-table"></table></div>
+        </div>
+      </section>
+
+      <!-- COMPARE -->
+      <section data-panel="compare" class="hidden">
+        <div class="callout">Compare two 13F filings from the same manager (for example, the previous quarter and the current quarter), or two Schedule 13D/G filings about the same issuer. Dates shown are reporting periods (13F) or event dates (13D/G), not filing dates.</div>
+        <div class="card">
+          <div class="toolbar">
+            <label class="inline">Earlier <select id="cmp-a" style="max-width:420px"></select></label>
+            <label class="inline">Later <select id="cmp-b" style="max-width:420px"></select></label>
+            <button class="primary" id="cmp-run">Compare</button>
+          </div>
+          <div id="cmp-out"></div>
+        </div>
+      </section>
+
+      <!-- FORMATS -->
+      <section data-panel="formats" class="hidden">
+        <div class="card" id="formats-card"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="../vendor/xlsx.full.min.js"></script>
+<script src="../vendor/jszip.min.js"></script>
+<script src="../shared/xml-lite.js"></script>
+<script src="../shared/data-models.js"></script>
+<script src="parsers/parser-base.js"></script>
+<script src="parsers/parser-13f.js"></script>
+<script src="parsers/parser-13dg-common.js"></script>
+<script src="parsers/parser-13d.js"></script>
+<script src="parsers/parser-13g.js"></script>
+<script src="parsers/parser-section16-common.js"></script>
+<script src="parsers/parser-form3.js"></script>
+<script src="parsers/parser-form4.js"></script>
+<script src="parsers/parser-form5.js"></script>
+<script src="parsers/index.js"></script>
+<script src="../shared/storage.js"></script>
+<script src="../shared/ui-helpers.js"></script>
+<script src="../shared/bridge.js"></script>
+<script src="js/parser-app.js"></script>
+</body>
+</html>
