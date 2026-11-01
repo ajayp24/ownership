@@ -57,6 +57,8 @@ There are 29 tests covering the UEIM masters, every parser, the parser-to-dashbo
 
 ## 1b. UEIM — Entity & Investment Manager Master
 
+Full requirements: [docs/UEIM-requirements.md](docs/UEIM-requirements.md) (PRD, data model, parser requirements, phases and definition of done).
+
 `ueim/ueim.html` (single file: `standalone/ueim.html`) builds one canonical set of master tables from the same filings (`shared/ueim-masters.js`):
 
 | Master | One row per | Notes |
