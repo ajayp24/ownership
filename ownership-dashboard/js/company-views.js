@@ -66,7 +66,7 @@
           <div class="who-grid" style="grid-template-columns:1fr 1fr">
             <div class="who"><b><span class="cat-dot" style="background:var(--c-issuer)"></span> Issuer</b>${esc(issuer.name)} — the company whose securities are reported. It does not file the 13Fs or 13Gs about itself.</div>
             <div class="who"><b><span class="cat-dot" style="background:var(--c-manager)"></span> Investment managers (13F filers)</b>${topMgr ? `e.g. ${esc(topMgr.managerName)} reported ${fmtShares(topMgr.shares)} shares for ${esc(lp)} under its investment discretion — not necessarily its own.` : 'No 13F data loaded.'}</div>
-            <div class="who"><b><span class="cat-dot" style="background:var(--c-beneficial)"></span> Beneficial owners (13D/G reporting persons)</b>${ben.persons[0] ? `e.g. ${esc(ben.persons[0].name)}: ${fmtPct(ben.persons[0].latest.percentOfClass)} reported on ${esc(ben.persons[0].latest.formType)} (event ${esc(ben.persons[0].latest.eventDate)}).` : 'No 13D/G filings in the data set.'}</div>
+            <div class="who"><b><span class="cat-dot" style="background:var(--c-beneficial)"></span> Beneficial owners (13D/G reporting persons)</b>${ben.current[0] ? `e.g. ${esc(ben.current[0].name)}: ${fmtPct(ben.current[0].latest.percentOfClass)} reported on ${esc(ben.current[0].latest.formType)} (event ${esc(ben.current[0].latest.eventDate)}).` : 'No 13D/G filings in the data set.'}</div>
             <div class="who"><b><span class="cat-dot" style="background:var(--c-insider)"></span> Insiders (Forms 3/4/5 filers)</b>${ins.people[0] ? `e.g. ${esc(ins.people[0].name)} (${esc(ins.people[0].roles.join(', '))}). Each insider is the filer of their own Forms 3/4/5.` : 'No Section 16 filings in the data set.'}</div>
           </div>
           <p class="small muted" style="margin-top:10px">The <strong>filer</strong> is whoever submitted each filing: the manager for a 13F, the reporting person(s) for a 13D/G, the insider for Forms 3/4/5.</p>
@@ -121,7 +121,7 @@
       <div class="callout"><strong>Beneficial ownership</strong> under Rule 13d-3 means having or sharing voting power and/or investment (dispositive) power. Percentages are <strong>as reported by the filer</strong> on the cover page, measured on the event date. Joint filers can report the same shares; amounts are never summed here.</div>
       <div class="table-wrap"><table class="data">
         <tr><th>Reporting person</th><th>Type</th><th>Latest filing</th><th>Class</th><th>Event date</th><th>Filed</th><th class="num">Aggregate</th><th class="num">% of class</th><th class="num">Voting sole / shared</th><th class="num">Dispositive sole / shared</th><th>Status</th></tr>
-        ${ben.persons.map((p) => { const l = p.latest; return `<tr><td><strong>${esc(p.name)}</strong>${p.cik ? `<div class="mono muted small">CIK ${esc(p.cik)}</div>` : ''}${l.jointFilers > 1 ? `<div class="small muted">joint filing with ${l.jointFilers - 1} other(s)</div>` : ''}${l.filerName && l.filerName !== p.name ? `<div class="small muted">filed by ${esc(l.filerName)}</div>` : ''}</td>
+        ${ben.persons.map((p) => { const l = p.latest; return `<tr${p.superseded ? ' style="opacity:.55"' : ''}><td><strong>${esc(p.name)}</strong>${p.superseded ? ' <span class="badge b-warn">replaced</span>' : ''}${p.cik ? `<div class="mono muted small">CIK ${esc(p.cik)}</div>` : ''}${l.jointFilers > 1 ? `<div class="small muted">joint filing with ${l.jointFilers - 1} other(s)</div>` : ''}${l.filerName && l.filerName !== p.name ? `<div class="small muted">filed by ${esc(l.filerName)}</div>` : ''}</td>
           <td class="small">${esc(l.types.map((t) => `${t} (${M.REPORTING_PERSON_TYPES[t] || t})`).join(', '))}${l.rules.length ? `<div class="muted">${esc(l.rules.join(', '))}</div>` : ''}</td>
           <td>${famBadge(l.schedule, l.formType)}${l.amendmentNumber ? `<div class="small muted">amendment ${l.amendmentNumber}</div>` : ''}</td>
           <td class="small">${esc(l.securityClass)}</td><td class="nowrap">${esc(l.eventDate)}</td><td class="nowrap">${esc(l.filingDate)}</td>
@@ -178,7 +178,7 @@
         <div class="card"><div class="cat-head"><span class="cat-dot" style="background:var(--c-manager)"></span><h3 style="margin:0">Major institutional holders</h3></div><p class="small muted">Form 13F · period ${esc(lp || '—')} · investment discretion</p>
           ${top.map((p) => `<div class="small" style="display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border);padding:4px 0"><span>${esc(p.managerName)}</span><span class="num">${fmtShares(p.shares)}${p.pctOfOutstanding !== null ? ' · ' + fmtPct(p.pctOfOutstanding) : ''}</span></div>`).join('') || '<p class="muted small">None loaded</p>'}</div>
         <div class="card"><div class="cat-head"><span class="cat-dot" style="background:var(--c-beneficial)"></span><h3 style="margin:0">Significant beneficial owners</h3></div><p class="small muted">Schedules 13D/G · latest filing per person · reported %</p>
-          ${ben.persons.slice(0, 6).map((p) => `<div class="small" style="display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border);padding:4px 0"><span>${esc(p.name)} <span class="muted">(${esc(p.latest.eventDate)})</span></span><span class="num">${fmtPct(p.latest.percentOfClass)}</span></div>`).join('') || '<p class="muted small">None loaded</p>'}</div>
+          ${ben.current.slice(0, 6).map((p) => `<div class="small" style="display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border);padding:4px 0"><span>${esc(p.name)} <span class="muted">(${esc(p.latest.eventDate)})</span></span><span class="num">${fmtPct(p.latest.percentOfClass)}</span></div>`).join('') || '<p class="muted small">None loaded</p>'}</div>
         <div class="card"><div class="cat-head"><span class="cat-dot" style="background:var(--c-insider)"></span><h3 style="margin:0">Insider holdings</h3></div><p class="small muted">Forms 3/4/5 · largest latest direct or indirect line</p>
           ${ins.people.filter((p) => p.holdings.length).sort((a, b) => b.holdings[0].shares - a.holdings[0].shares).slice(0, 6).map((p) => `<div class="small" style="display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border);padding:4px 0"><span>${esc(p.name)} <span class="muted">(${esc(p.holdings[0].nature)}, ${esc(p.holdings[0].asOfDate)})</span></span><span class="num">${fmtShares(p.holdings[0].shares)}</span></div>`).join('') || '<p class="muted small">None loaded</p>'}</div>
       </div>
@@ -224,7 +224,7 @@
       meta: `13F · quarter ending ${p.period}`, link: indexUrlFor(p.managerCik, p.accessionNumbers[p.accessionNumbers.length - 1]),
       tip: p.pctBasis,
     }));
-    const ben = v.beneficial.persons.slice(0, 8).map((p) => ({
+    const ben = v.beneficial.current.slice(0, 8).map((p) => ({
       name: p.name, size: p.latest.percentOfClass || 0,
       fig: `${fmtPct(p.latest.percentOfClass)} · ${fmtShares(p.latest.shares)} shares`,
       meta: `${p.latest.formType} · as of ${p.latest.eventDate}`, link: p.latest.sourceUrl,

@@ -168,8 +168,25 @@
       p.status = p.latest.exitFlag || (p.latest.percentOfClass !== null && p.latest.percentOfClass <= 5) ? 'At or below 5% (latest filing)' : 'Above 5% (latest filing)';
       return p;
     });
-    list.sort(byDesc((p) => p.latest.percentOfClass || 0));
-    return { persons: list, filings: recs.length };
+    // A later filing from the same filer that continues the same chain (shares at least one
+    // reporting person) but no longer names this person replaces this person's figures.
+    // Example: Danone's final 13D/A on Lifeway (May 2026) names its US subsidiary under a new
+    // name and reports 0%, so the earlier "Danone North America PBC" 22.7% is no longer current.
+    for (const p of list) {
+      const l = p.latest;
+      if (!l.filerCik) continue;
+      const names = new Set([p.key].concat(l.coFilers.map((n) => 'name:' + E.tokenKey(n))));
+      const later = recs.filter((r) => r.filing.filerCik === l.filerCik && r.filing.filingDate > l.filingDate)
+        .filter((r) => r.extension.reportingPersons.some((q) => names.has(q.cik ? 'cik:' + q.cik : 'name:' + E.tokenKey(q.name)) || names.has('name:' + E.tokenKey(q.name))))
+        .sort(byDesc((r) => r.filing.filingDate));
+      const newest = later[0];
+      if (newest && !newest.extension.reportingPersons.some((q) => (q.cik ? 'cik:' + q.cik : 'name:' + E.tokenKey(q.name)) === p.key)) {
+        p.superseded = { accessionNumber: newest.filing.accessionNumber, filingDate: newest.filing.filingDate, formType: newest.filing.formType, names: newest.extension.reportingPersons.map((q) => q.name) };
+        p.status = `Replaced: the same filer's later ${newest.filing.formType} (filed ${newest.filing.filingDate}) no longer names this person — the holding was renamed, moved or sold`;
+      }
+    }
+    list.sort((a, b) => (!!a.superseded - !!b.superseded) || (b.latest.percentOfClass || 0) - (a.latest.percentOfClass || 0));
+    return { persons: list, current: list.filter((p) => !p.superseded), filings: recs.length };
   }
 
   // ---------------------------------------------------------------- Section 16
